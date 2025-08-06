@@ -1,0 +1,77 @@
+{
+  "name": "testely",
+  "displayName": "Testely",
+  "description": "Writing tests without hustle.",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.99.3"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onLanguage:typescript",
+    "onLanguage:typescriptreact",
+    "*"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "testely.openTest",
+        "title": "Create Test",
+        "category": "Testely"
+      }
+    ]
+  },
+  "configuration": {
+    "title": "Testely",
+    "type": "object",
+    "properties": {
+      "testely.typescript.location": {
+        "type": "string",
+        "markdownDescription": "Specifies where the tasks will be located.",
+        "default": "same directory (nested)",
+        "markdownEnumDescriptions": [
+          "The tests will be created in the same directory. Example:\n\n    src\n     └── components \n         ├── Component.tsx \n         └── Component.test.tsx",
+          "The tests will be created in a nested directory inside the directory of the source file. Example:\n\n    src\n     └── components \n         ├── __tests__\n         │   └── Component.test.tsx\n         └── Component.tsx",
+          "The tests will be created flat in a test at the project root directory. Example:\n\n    src\n     └── components \n         └── Component.tsx\n    test\n     └── Component.test.tsx\n",
+          "The tests will be created nested in a test at the project root directory. Example:\n\n    src\n     └── components \n         └── Component.tsx\n    test\n     └── components \n         └── Component.test.tsx\n"
+        ],
+        "enum": [
+          "same directory (next to the source file)",
+          "same directory (nested in __test__)",
+          "same directory (nested in __tests__)",
+          "root test folder (flat)",
+          "root test folder (structured)"
+        ]
+      }
+    }
+  },
+  "keybindings": [
+    {
+      "when": "editorTextFocus && editorLangId in testely.supportedLangIds && resourceFilename =~ /^.+(?<!.test.(\\w+))$/g",
+      "command": "testely.openTest",
+      "key": "Ctrl+Shift+J"
+    }
+  ],
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.102.0",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "20.x",
+    "@typescript-eslint/eslint-plugin": "^8.31.1",
+    "@typescript-eslint/parser": "^8.31.1",
+    "eslint": "^9.25.1",
+    "typescript": "^5.8.3",
+    "@vscode/test-cli": "^0.0.11",
+    "@vscode/test-electron": "^2.5.2"
+  }
+}

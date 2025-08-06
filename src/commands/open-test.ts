@@ -1,0 +1,62 @@
+import { TextDocument, window } from "vscode";
+import { resolveProject } from "../resolver/project";
+import { logger } from "../utils/logger";
+
+const ERRORS = {
+  UNTITLED_DOCUMENT: "Untitled document cannot be opened as a test file.",
+  ONLY_LOCAL_FILES: "Only local files can be opened as test files.",
+  FAILED_TO_OPEN_TEST_FILE: "Failed to open test file.",
+  NO_PROJECT_FOUND: "No project found for this file.",
+};
+
+export async function openTest(document: TextDocument) {
+  logger.logUsage("openTest", { document: document.uri.toString() });
+
+  try {
+    if (document.isUntitled) {
+      logger.logError("openTest", {
+        error: ERRORS.UNTITLED_DOCUMENT,
+      });
+      window.showErrorMessage(ERRORS.UNTITLED_DOCUMENT);
+      return;
+    }
+
+    if (document.uri.scheme !== "file") {
+      logger.logError("openTest", {
+        error: ERRORS.ONLY_LOCAL_FILES,
+      });
+      window.showErrorMessage(ERRORS.ONLY_LOCAL_FILES);
+      return;
+    }
+
+    const project = resolveProject(document);
+
+    if (!project) {
+      logger.logError("openTest", {
+        error: ERRORS.NO_PROJECT_FOUND,
+      });
+      window.showErrorMessage(ERRORS.NO_PROJECT_FOUND);
+      return;
+    }
+
+    if (project.isTestFile(document.uri.fsPath)) {
+      const sourceFilePath = await project.getSourceFilePath(
+        document.uri.fsPath
+      );
+    } else {
+      const testFilePath = await project.getTestFilePath(document.uri.fsPath);
+    }
+
+    // if: is test file
+    // then: open source file
+
+    // if: test file exists
+    // then: open test file
+
+    // if: test file does not exist
+    // then: create test file
+  } catch (error) {
+    logger.logError("openTest", { error });
+    window.showErrorMessage(ERRORS.FAILED_TO_OPEN_TEST_FILE);
+  }
+}
