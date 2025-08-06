@@ -7,6 +7,7 @@ import { TypescriptConfigTestLocation } from "../../configuration/typescript";
 import { Files, Path } from "../../utils/files";
 import { logger } from "../../utils/logger";
 import { PROJECT_ERRORS } from "./errors";
+import { ResolveStrategy } from "./types";
 
 export class TypeScriptProject implements Project {
   private readonly packageJson: Path;
@@ -346,19 +347,4 @@ export class TypeScriptProject implements Project {
       strategy: TypescriptConfigTestLocation.RootTestFolderFlat,
     },
   ];
-}
-
-type ResolveStrategyResult =
-  | {
-      exists: true;
-      path: Path;
-    }
-  | {
-      exists: false;
-      path: Path;
-    };
-
-interface ResolveStrategy {
-  resolve(path: Path): Promise<ResolveStrategyResult>;
-  strategy: TypescriptConfigTestLocation;
 }
