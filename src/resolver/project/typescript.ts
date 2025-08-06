@@ -1,15 +1,23 @@
+import { writeFile } from "fs/promises";
 import { parse, resolve } from "path";
 import { TextDocument, window, workspace } from "vscode";
 import { Likelyness, Project } from ".";
 import { configuration } from "../../configuration/configuration";
-import { TestLocation } from "../../configuration/typescript";
+import { TypescriptConfigTestLocation } from "../../configuration/typescript";
 import { Files, Path } from "../../utils/files";
 import { logger } from "../../utils/logger";
+import { PROJECT_ERRORS } from "./errors";
 
 export class TypeScriptProject implements Project {
   private readonly packageJson: Path;
+  private readonly config = configuration.getTypescriptConfiguration();
 
-  private readonly testFileExtensions = [".spec.ts", ".test.ts"];
+  private readonly testFileExtensions = [
+    ".spec.ts",
+    ".test.ts",
+    ".spec.tsx",
+    ".test.tsx",
+  ];
 
   /**
    * @param packageJson - The path to the package.json file.
@@ -29,8 +37,8 @@ export class TypeScriptProject implements Project {
       filepath,
     });
 
-    const { name } = parse(filepath);
-    return this.testFileExtensions.some((ext) => name.endsWith(ext));
+    const { base } = parse(filepath);
+    return this.testFileExtensions.some((ext) => base.endsWith(ext));
   }
 
   async getSourceFilePath(path: Path): Promise<Path> {
@@ -39,12 +47,42 @@ export class TypeScriptProject implements Project {
       filepath: path,
     });
 
-    const config = configuration.getTypescriptConfiguration();
-    const testlocation = await config.getTestLocation();
+    const testlocation = await this.config.getTestLocation();
 
-    window.showInformationMessage("testlocation: " + testlocation);
+    const strategy = this.SOURCE_RESOLVE_STRATEGIES.find(
+      (strategy) => strategy.strategy === testlocation
+    );
 
-    return path.replace(".spec.ts", ".ts");
+    if (!strategy) {
+      throw new Error(PROJECT_ERRORS.NO_STRATEGY_FOUND);
+    }
+
+    const result = await strategy.resolve(path);
+
+    if (result.exists) {
+      return result.path;
+    }
+
+    // check if test file exists in any strategy
+    for (const strategy of this.SOURCE_RESOLVE_STRATEGIES.filter(
+      (strategy) => strategy.strategy !== testlocation
+    )) {
+      const result = await strategy.resolve(path);
+
+      if (result.exists) {
+        window.showInformationMessage(
+          "Found Source, but it was in the wrong location. Expected: " +
+            testlocation +
+            " but found the file in: " +
+            strategy.strategy +
+            " instead. Consider changing the test file location or the choosen strategy."
+        );
+
+        return result.path;
+      }
+    }
+
+    throw new Error(PROJECT_ERRORS.NO_SOURCE_FILE_FOUND);
   }
 
   async getTestFilePath(path: Path): Promise<Path> {
@@ -53,16 +91,48 @@ export class TypeScriptProject implements Project {
       filepath: path,
     });
 
-    const config = configuration.getTypescriptConfiguration();
-    const testlocation = await config.getTestLocation();
+    const testlocation = await this.config.getTestLocation();
 
-    // check if test exists in any strategy
+    const strategy = this.TEST_RESOLVE_STRATEGIES.find(
+      (strategy) => strategy.strategy === testlocation
+    );
 
-    if (testlocation === TestLocation.SameDirectory) {
-      return path.replace(".ts", ".spec.ts");
+    if (!strategy) {
+      throw new Error(PROJECT_ERRORS.NO_STRATEGY_FOUND);
     }
 
-    return path.replace(".ts", ".spec.ts");
+    const result = await strategy.resolve(path);
+
+    if (result.exists) {
+      return result.path;
+    }
+
+    // check if test file exists in any strategy
+    for (const strategy of this.TEST_RESOLVE_STRATEGIES.filter(
+      (strategy) => strategy.strategy !== testlocation
+    )) {
+      const result = await strategy.resolve(path);
+
+      if (result.exists) {
+        window.showInformationMessage(
+          "Found Test, but it was in the wrong location. Expected: " +
+            testlocation +
+            " but found the file in: " +
+            strategy.strategy +
+            " instead. Consider changing the test file location or the choosen strategy."
+        );
+
+        return result.path;
+      }
+    }
+
+    // create file
+    const { dir } = parse(result.path);
+    await Files.assureDir(dir);
+
+    await writeFile(result.path, "", { encoding: "utf8" });
+
+    return result.path;
   }
 
   responsibleFor(doc: TextDocument): Likelyness {
@@ -93,88 +163,202 @@ export class TypeScriptProject implements Project {
     return projects;
   }
 
-  private readonly strategies: Array<ResolveStrategy> = [
+  private async withTestExtension(base: string): Promise<string> {
+    const ext = await this.config.getTestFileExtension();
+    return base.replace(/\.ts(x?)$/g, (_, ...args) => `${ext}${args[0]}`);
+  }
+
+  private async withSourceExtension(base: string): Promise<string> {
+    const ext = await this.config.getTestFileExtension();
+    return base.replace(
+      new RegExp(`\\${ext}(x?)$`),
+      (_, ...args) => `.ts${args[0]}`
+    );
+  }
+
+  private readonly TEST_RESOLVE_STRATEGIES: Array<ResolveStrategy> = [
     {
       resolve: async (path: Path) => {
-        for (const ext of this.testFileExtensions) {
-          const testPath = path.replace(".ts", ext);
+        const testPath = await this.withTestExtension(path);
 
-          if (await Files.exists(testPath)) {
-            return {
-              exists: true,
-              path: testPath,
-              strategy: TestLocation.SameDirectory,
-            };
-          }
+        if (await Files.exists(testPath)) {
+          return {
+            exists: true,
+            path: testPath,
+          };
         }
 
         return {
           exists: false,
-          path: path,
-          strategy: TestLocation.SameDirectory,
+          path: testPath,
         };
       },
+      strategy: TypescriptConfigTestLocation.SameDirectory,
     },
     {
       resolve: async (path: Path) => {
-        const { dir, name } = parse(path);
+        const { dir, base } = parse(path);
         const testPath = resolve(
           dir,
           "__test__",
-          name.replace(".ts", ".spec.ts")
+          await this.withTestExtension(base)
         );
 
         if (await Files.exists(testPath)) {
           return {
             exists: true,
             path: testPath,
-            strategy: TestLocation.SameDirectoryNestedTest,
           };
         }
 
         return {
           exists: false,
-          path: path,
-          strategy: TestLocation.SameDirectoryNestedTest,
+          path: testPath,
         };
       },
+      strategy: TypescriptConfigTestLocation.SameDirectoryNestedTest,
     },
     {
       resolve: async (path: Path) => {
+        const { dir, base } = parse(path);
+        const testPath = resolve(
+          dir,
+          "__tests__",
+          await this.withTestExtension(base)
+        );
+
+        if (await Files.exists(testPath)) {
+          return {
+            exists: true,
+            path: testPath,
+          };
+        }
+
         return {
-          exists: true,
-          path: path.replace(".ts", ".spec.ts"),
-          strategy: TestLocation.SameDirectoryNestedTests,
+          exists: false,
+          path: testPath,
         };
       },
+      strategy: TypescriptConfigTestLocation.SameDirectoryNestedTests,
     },
     {
       resolve: async (path: Path) => {
         return {
           exists: false,
-          path: path.replace(".ts", ".spec.ts"),
-          strategy: TestLocation.RootTestFolderNested,
+          path: "",
         };
       },
+      strategy: TypescriptConfigTestLocation.RootTestFolderNested,
     },
     {
       resolve: async (path: Path) => {
         return {
           exists: false,
-          path: path.replace(".ts", ".spec.ts"),
-          strategy: TestLocation.RootTestFolderFlat,
+          path: "",
         };
       },
+      strategy: TypescriptConfigTestLocation.RootTestFolderFlat,
+    },
+  ];
+
+  private readonly SOURCE_RESOLVE_STRATEGIES: Array<ResolveStrategy> = [
+    {
+      resolve: async (path: Path) => {
+        const { dir, base } = parse(path);
+        const testPath = resolve(dir, await this.withSourceExtension(base));
+
+        if (await Files.exists(testPath)) {
+          return {
+            exists: true,
+            path: testPath,
+          };
+        }
+
+        return {
+          exists: false,
+          path: testPath,
+        };
+      },
+      strategy: TypescriptConfigTestLocation.SameDirectory,
+    },
+    {
+      resolve: async (path: Path) => {
+        const { dir, base } = parse(path);
+        const testPath = resolve(
+          dir,
+          "..",
+          await this.withSourceExtension(base)
+        );
+
+        if (await Files.exists(testPath)) {
+          return {
+            exists: true,
+            path: testPath,
+          };
+        }
+
+        return {
+          exists: false,
+          path: testPath,
+        };
+      },
+      strategy: TypescriptConfigTestLocation.SameDirectoryNestedTest,
+    },
+    {
+      resolve: async (path: Path) => {
+        const { dir, base } = parse(path);
+        const testPath = resolve(
+          dir,
+          "..",
+          await this.withSourceExtension(base)
+        );
+
+        if (await Files.exists(testPath)) {
+          return {
+            exists: true,
+            path: testPath,
+          };
+        }
+
+        return {
+          exists: false,
+          path: testPath,
+        };
+      },
+      strategy: TypescriptConfigTestLocation.SameDirectoryNestedTests,
+    },
+    {
+      resolve: async (path: Path) => {
+        return {
+          exists: false,
+          path: "",
+        };
+      },
+      strategy: TypescriptConfigTestLocation.RootTestFolderNested,
+    },
+    {
+      resolve: async (path: Path) => {
+        return {
+          exists: false,
+          path: "",
+        };
+      },
+      strategy: TypescriptConfigTestLocation.RootTestFolderFlat,
     },
   ];
 }
 
-type ResolveStrategyResult = {
-  exists: boolean;
-  path: Path;
-  strategy: TestLocation;
-};
+type ResolveStrategyResult =
+  | {
+      exists: true;
+      path: Path;
+    }
+  | {
+      exists: false;
+      path: Path;
+    };
 
 interface ResolveStrategy {
   resolve(path: Path): Promise<ResolveStrategyResult>;
+  strategy: TypescriptConfigTestLocation;
 }

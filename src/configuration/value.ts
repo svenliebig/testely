@@ -27,7 +27,9 @@ export class ConfigValue<T> {
   public async set(value: T) {
     this.value = value;
     try {
-      await workspace.getConfiguration(this.section).update(this.key, value);
+      await workspace
+        .getConfiguration(this.section)
+        .update(this.key, value, false);
     } catch (error) {
       logger.logError("ConfigValue.set", {
         error,
@@ -63,7 +65,7 @@ export class RequiredOptionConfigValue<
   public async get(): Promise<T> {
     let value: T | undefined = await super.get();
 
-    while (value === undefined) {
+    while (!value) {
       const pick = await window.showQuickPick(
         this.options.map((option) => ({
           label: option,

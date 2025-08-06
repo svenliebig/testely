@@ -1,4 +1,4 @@
-import { TextDocument, window } from "vscode";
+import { TextDocument, Uri, window, workspace } from "vscode";
 import { resolveProject } from "../resolver/project";
 import { logger } from "../utils/logger";
 
@@ -43,8 +43,12 @@ export async function openTest(document: TextDocument) {
       const sourceFilePath = await project.getSourceFilePath(
         document.uri.fsPath
       );
+
+      await showDocument(sourceFilePath);
     } else {
       const testFilePath = await project.getTestFilePath(document.uri.fsPath);
+
+      await showDocument(testFilePath);
     }
 
     // if: is test file
@@ -59,4 +63,9 @@ export async function openTest(document: TextDocument) {
     logger.logError("openTest", { error });
     window.showErrorMessage(ERRORS.FAILED_TO_OPEN_TEST_FILE);
   }
+}
+
+export async function showDocument(filePath: string) {
+  const doc = await workspace.openTextDocument(Uri.file(filePath));
+  await window.showTextDocument(doc, 1, false);
 }
