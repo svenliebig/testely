@@ -16,7 +16,7 @@ export function activate(context: vscode.ExtensionContext) {
     "java",
   ]);
 
-  let disposable = vscode.commands.registerCommand(
+  let openTestDisposable = vscode.commands.registerCommand(
     "testely.openTest",
     (args, thisArg) => {
       if (args) {
@@ -37,7 +37,28 @@ export function activate(context: vscode.ExtensionContext) {
     }
   );
 
-  context.subscriptions.push(disposable);
+  let openSourceDisposable = vscode.commands.registerCommand(
+    "testely.openSource",
+    (args, thisArg) => {
+      if (args) {
+        vscode.workspace.openTextDocument(args).then((document) => {
+          return openTest(document);
+        });
+      } else {
+        const { document } = vscode.window.activeTextEditor || {};
+
+        if (!document) {
+          return vscode.window.showErrorMessage(
+            "Could not manage to find file for test creation."
+          );
+        }
+
+        return openTest(document);
+      }
+    }
+  );
+
+  context.subscriptions.push(openTestDisposable, openSourceDisposable);
 }
 
 // This method is called when your extension is deactivated

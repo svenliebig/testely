@@ -68,6 +68,11 @@
         "when": "editorTextFocus && editorLangId in testely.supportedLangIds && resourceFilename =~ /^.+(?<!.test.(\\w+))$/g",
         "command": "testely.openTest",
         "key": "Ctrl+Shift+J"
+      },
+      {
+        "when": "editorTextFocus && editorLangId in testely.supportedLangIds && resourceFilename =~ /^.+(.test.(\\w+))$/g",
+        "command": "testely.openSource",
+        "key": "Ctrl+Shift+J"
       }
     ]
   },
