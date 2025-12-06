@@ -1,14 +1,13 @@
 import * as vscode from "vscode";
 import { openTest } from "./commands/open-test";
 import { Projects } from "./resolver/project";
-import { logger } from "./utils/logger";
+import { Logging } from "./utils/logger";
 
 export function activate(context: vscode.ExtensionContext) {
-  logger.logUsage("activate", {
-    message: "Testely is now active ✨",
-  });
-
   Projects.init();
+  Logging.init();
+
+  Logging.info("[Activate] Testely is now active ✨");
 
   vscode.commands.executeCommand("setContext", "testely.supportedLangIds", [
     "typescript",
@@ -19,20 +18,31 @@ export function activate(context: vscode.ExtensionContext) {
   let openTestDisposable = vscode.commands.registerCommand(
     "testely.openTest",
     (args, thisArg) => {
-      if (args) {
-        vscode.workspace.openTextDocument(args).then((document) => {
+      Logging.telemetry.logUsage("openTest");
+
+      try {
+        if (args) {
+          vscode.workspace.openTextDocument(args).then((document) => {
+            return openTest(document);
+          });
+        } else {
+          const { document } = vscode.window.activeTextEditor || {};
+
+          if (!document) {
+            return vscode.window.showErrorMessage(
+              "Could not manage to find file for test creation."
+            );
+          }
+
           return openTest(document);
-        });
-      } else {
-        const { document } = vscode.window.activeTextEditor || {};
-
-        if (!document) {
-          return vscode.window.showErrorMessage(
-            "Could not manage to find file for test creation."
-          );
         }
+      } catch (error) {
+        Logging.error("[OpenTest] Failed to open test file", { error });
 
-        return openTest(document);
+        Logging.telemetry.logError("openTest", { error });
+        return vscode.window.showErrorMessage(
+          "Unexpected error occurred while opening test file."
+        );
       }
     }
   );

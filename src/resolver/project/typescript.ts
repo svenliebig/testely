@@ -5,7 +5,7 @@ import { Likelyness, Project } from ".";
 import { configuration } from "../../configuration/configuration";
 import { TypescriptConfigTestLocation } from "../../configuration/typescript";
 import { Files, Path } from "../../utils/files";
-import { logger } from "../../utils/logger";
+import { Logging } from "../../utils/logger";
 import { PROJECT_ERRORS } from "./errors";
 import { ResolveStrategy } from "./types";
 
@@ -33,8 +33,7 @@ export class TypeScriptProject implements Project {
   //   the test file extensions for each of them, or even check the configuration
   //   files to see if the user has configured the test file extensions differently.
   isTestFile(filepath: Path): boolean {
-    logger.logUsage("TypeScriptProject.isTestFile", {
-      message: "Checking if file is a test file",
+    Logging.trace("[TypeScriptProject] Checking if file is a test file", {
       filepath,
     });
 
@@ -43,8 +42,7 @@ export class TypeScriptProject implements Project {
   }
 
   async getSourceFilePath(path: Path): Promise<Path> {
-    logger.logUsage("TypeScriptProject.getSourceFilePath", {
-      message: "Getting source file path",
+    Logging.trace("[TypeScriptProject] Getting source file path", {
       filepath: path,
     });
 
@@ -87,8 +85,7 @@ export class TypeScriptProject implements Project {
   }
 
   async getTestFilePath(path: Path): Promise<Path> {
-    logger.logUsage("TypeScriptProject.getTestFilePath", {
-      message: "Getting test file path",
+    Logging.trace("[TypeScriptProject] Getting test file path", {
       filepath: path,
     });
 
@@ -153,8 +150,7 @@ export class TypeScriptProject implements Project {
     const packageJsonFiles = await workspace.findFiles("package.json");
 
     for (const packageJsonFile of packageJsonFiles.map((file) => file.fsPath)) {
-      logger.logUsage("TypeScriptProject.init", {
-        message: "Found package.json file",
+      Logging.debug("[TypeScriptProject] Found package.json file", {
         packageJsonFile,
       });
 

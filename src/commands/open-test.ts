@@ -1,6 +1,6 @@
 import { TextDocument, Uri, window, workspace } from "vscode";
 import { resolveProject } from "../resolver/project";
-import { logger } from "../utils/logger";
+import { Logging } from "../utils/logger";
 
 const ERRORS = {
   UNTITLED_DOCUMENT: "Untitled document cannot be opened as a test file.",
@@ -10,21 +10,19 @@ const ERRORS = {
 };
 
 export async function openTest(document: TextDocument) {
-  logger.logUsage("openTest", { document: document.uri.toString() });
+  Logging.info("[OpenTest] Opening test file", {
+    document: document.uri.toString(),
+  });
 
   try {
     if (document.isUntitled) {
-      logger.logError("openTest", {
-        error: ERRORS.UNTITLED_DOCUMENT,
-      });
+      Logging.error(`[OpenTest] ${ERRORS.UNTITLED_DOCUMENT}`);
       window.showErrorMessage(ERRORS.UNTITLED_DOCUMENT);
       return;
     }
 
     if (document.uri.scheme !== "file") {
-      logger.logError("openTest", {
-        error: ERRORS.ONLY_LOCAL_FILES,
-      });
+      Logging.error(`[OpenTest] ${ERRORS.ONLY_LOCAL_FILES}`);
       window.showErrorMessage(ERRORS.ONLY_LOCAL_FILES);
       return;
     }
@@ -32,9 +30,7 @@ export async function openTest(document: TextDocument) {
     const project = resolveProject(document);
 
     if (!project) {
-      logger.logError("openTest", {
-        error: ERRORS.NO_PROJECT_FOUND,
-      });
+      Logging.error(`[OpenTest] ${ERRORS.NO_PROJECT_FOUND}`);
       window.showErrorMessage(ERRORS.NO_PROJECT_FOUND);
       return;
     }
@@ -60,7 +56,7 @@ export async function openTest(document: TextDocument) {
     // if: test file does not exist
     // then: create test file
   } catch (error) {
-    logger.logError("openTest", { error });
+    Logging.error(`[OpenTest] ${ERRORS.FAILED_TO_OPEN_TEST_FILE}`, { error });
     window.showErrorMessage(ERRORS.FAILED_TO_OPEN_TEST_FILE);
   }
 }

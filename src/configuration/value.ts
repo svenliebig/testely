@@ -1,5 +1,5 @@
 import { window, workspace } from "vscode";
-import { logger } from "../utils/logger";
+import { Logging } from "../utils/logger";
 
 export class ConfigValue<T> {
   private value: T | undefined;
@@ -31,11 +31,12 @@ export class ConfigValue<T> {
         .getConfiguration(this.section)
         .update(this.key, value, false);
     } catch (error) {
-      logger.logError("ConfigValue.set", {
-        error,
-        section: this.section,
-        key: this.key,
-      });
+      Logging.error(
+        `[ConfigValue] Failed to set config value for ${this.section}.${this.key}`,
+        {
+          error,
+        }
+      );
       window.showErrorMessage(
         `Failed to set config value for ${this.section}.${this.key}`
       );
