@@ -1,4 +1,4 @@
-import { TextDocument, Uri, window, workspace } from "vscode";
+import { commands, TextDocument, Uri, window } from "vscode";
 import { resolveProject } from "../resolver/project";
 import { Logging } from "../utils/logger";
 
@@ -42,19 +42,14 @@ export async function openTest(document: TextDocument) {
 
       await showDocument(sourceFilePath);
     } else {
+      Logging.debug("[OpenTest] Getting test file path");
       const testFilePath = await project.getTestFilePath(document.uri.fsPath);
 
+      Logging.debug("[OpenTest] Showing test file", {
+        testFilePath,
+      });
       await showDocument(testFilePath);
     }
-
-    // if: is test file
-    // then: open source file
-
-    // if: test file exists
-    // then: open test file
-
-    // if: test file does not exist
-    // then: create test file
   } catch (error) {
     Logging.error(`[OpenTest] ${ERRORS.FAILED_TO_OPEN_TEST_FILE}`, { error });
     window.showErrorMessage(ERRORS.FAILED_TO_OPEN_TEST_FILE);
@@ -62,6 +57,8 @@ export async function openTest(document: TextDocument) {
 }
 
 export async function showDocument(filePath: string) {
-  const doc = await workspace.openTextDocument(Uri.file(filePath));
-  await window.showTextDocument(doc, 1, false);
+  Logging.trace("[OpenTest] Opening document", {
+    filePath,
+  });
+  await commands.executeCommand("vscode.open", Uri.file(filePath));
 }

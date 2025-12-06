@@ -1,6 +1,7 @@
 import { existsSync, statSync } from "fs";
 import { mkdir, readdir, stat } from "fs/promises";
 import { join, relative, sep } from "path";
+import { Logging } from "./logger";
 
 export type Path = string;
 
@@ -54,6 +55,9 @@ function distance(path: Path, other: Path): number {
 }
 
 async function exists(path: Path): Promise<boolean> {
+  Logging.trace("[Files] Checking if file exists", {
+    path,
+  });
   try {
     await stat(path);
     return true;

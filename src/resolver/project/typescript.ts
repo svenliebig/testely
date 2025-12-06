@@ -99,9 +99,17 @@ export class TypeScriptProject implements Project {
       throw new Error(PROJECT_ERRORS.NO_STRATEGY_FOUND);
     }
 
+    Logging.debug("[TypeScriptProject] Resolving test file path", {
+      strategy: strategy.strategy,
+    });
+
     const result = await strategy.resolve(path);
 
     if (result.exists) {
+      Logging.debug("[TypeScriptProject] Found test file", {
+        filepath: result.path,
+        strategy: strategy.strategy,
+      });
       return result.path;
     }
 
@@ -109,6 +117,9 @@ export class TypeScriptProject implements Project {
     for (const strategy of this.TEST_RESOLVE_STRATEGIES.filter(
       (strategy) => strategy.strategy !== testlocation
     )) {
+      Logging.debug("[TypeScriptProject] Checking test file in strategy", {
+        strategy: strategy.strategy,
+      });
       const result = await strategy.resolve(path);
 
       if (result.exists) {
@@ -119,6 +130,11 @@ export class TypeScriptProject implements Project {
             strategy.strategy +
             " instead. Consider changing the test file location or the choosen strategy."
         );
+
+        Logging.debug("[TypeScriptProject] Found test file in wrong location", {
+          filepath: result.path,
+          strategy: strategy.strategy,
+        });
 
         return result.path;
       }
