@@ -1,7 +1,7 @@
 import { writeFile } from "fs/promises";
 import { parse, resolve } from "path";
 import { RelativePattern, TextDocument, window, workspace } from "vscode";
-import { Likelyness, Project } from ".";
+import { Likelihood, Project } from ".";
 import { configuration } from "../../configuration/configuration";
 import {
   TypescriptConfigTestFileExtension,
@@ -152,7 +152,7 @@ export class TypeScriptProject implements Project {
     return result.path;
   }
 
-  responsibleFor(doc: TextDocument): Likelyness {
+  responsibleFor(doc: TextDocument): Likelihood {
     if (
       doc.languageId !== "typescript" &&
       doc.languageId !== "typescriptreact"

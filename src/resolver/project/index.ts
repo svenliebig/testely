@@ -2,13 +2,13 @@ import { TextDocument } from "vscode";
 import { TypeScriptProject } from "./typescript";
 
 /**
- * The likelyness if a project is responsible to handle a file,
+ * The likelihood if a project is responsible to handle a file,
  * the lower the number the more likely the project is responsible.
  */
-export type Likelyness = false | number;
+export type Likelihood = false | number;
 
 export interface Project {
-  responsibleFor(doc: TextDocument): Likelyness;
+  responsibleFor(doc: TextDocument): Likelihood;
   isTestFile(path: string): boolean;
   getSourceFilePath(path: string): Promise<string>;
   getTestFilePath(path: string): Promise<string>;
@@ -17,7 +17,7 @@ export interface Project {
 class UnknownProject implements Project {
   constructor() {}
 
-  responsibleFor(doc: TextDocument): Likelyness {
+  responsibleFor(doc: TextDocument): Likelihood {
     return false;
   }
 
@@ -45,10 +45,10 @@ export function resolveProject(source: TextDocument): Project | undefined {
   let l = 0;
 
   for (const project of projects) {
-    const likelyness = project.responsibleFor(source);
-    if (likelyness !== false && (p === undefined || likelyness < l)) {
+    const likelihood = project.responsibleFor(source);
+    if (likelihood !== false && (p === undefined || likelihood < l)) {
       p = project;
-      l = likelyness;
+      l = likelihood;
       break;
     }
   }
