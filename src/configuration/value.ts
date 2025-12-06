@@ -1,4 +1,4 @@
-import { window, workspace } from "vscode";
+import { ConfigurationTarget, window, workspace } from "vscode";
 import { Logging } from "../utils/logger";
 
 export class ConfigValue<T> {
@@ -29,7 +29,7 @@ export class ConfigValue<T> {
     try {
       await workspace
         .getConfiguration(this.section)
-        .update(this.key, value, false);
+        .update(this.key, value, ConfigurationTarget.Workspace);
     } catch (error) {
       Logging.error(
         `[ConfigValue] Failed to set config value for ${this.section}.${this.key}`,
@@ -67,6 +67,10 @@ export class RequiredOptionConfigValue<
     let value: T | undefined = await super.get();
 
     while (!value) {
+      Logging.info(
+        `[RequiredOptionConfigValue] No value found for configuration, prompting user...`
+      );
+
       const pick = await window.showQuickPick(
         this.options.map((option) => ({
           label: option,
@@ -78,11 +82,13 @@ export class RequiredOptionConfigValue<
       );
 
       value = pick?.value;
-    }
 
-    if (value) {
-      await this.set(value);
-      return value;
+      if (value) {
+        Logging.info(
+          `[RequiredOptionConfigValue] Setting config value to ${value}`
+        );
+        await this.set(value);
+      }
     }
 
     return value;
