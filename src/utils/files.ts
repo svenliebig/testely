@@ -1,4 +1,3 @@
-import { existsSync, statSync } from "fs";
 import { mkdir, readdir, stat } from "fs/promises";
 import { join, relative, sep } from "path";
 import { Logging } from "./logger";
@@ -66,13 +65,14 @@ async function exists(path: Path): Promise<boolean> {
   }
 }
 
-function isFolder(path: string): boolean {
-  return existsSync(path) && statSync(path).isDirectory();
+async function isDirectory(path: string): Promise<boolean> {
+  return (await exists(path)) && (await stat(path)).isDirectory();
 }
 
 async function ensureDir(path: string) {
-  if (existsSync(path)) {
-    if (!isFolder(path)) {
+  if (await exists(path)) {
+    const isDir = await isDirectory(path);
+    if (!isDir) {
       throw new Error(`Path is not a folder. Stop messing around. (${path})`);
     }
   } else {
