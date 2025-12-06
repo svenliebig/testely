@@ -1,9 +1,12 @@
 import { writeFile } from "fs/promises";
 import { parse, resolve } from "path";
-import { TextDocument, window, workspace } from "vscode";
+import { RelativePattern, TextDocument, window, workspace } from "vscode";
 import { Likelyness, Project } from ".";
 import { configuration } from "../../configuration/configuration";
-import { TypescriptConfigTestLocation } from "../../configuration/typescript";
+import {
+  TypescriptConfigTestFileExtension,
+  TypescriptConfigTestLocation,
+} from "../../configuration/typescript";
 import { Files, Path } from "../../utils/files";
 import { Logging } from "../../utils/logger";
 import { PROJECT_ERRORS } from "./errors";
@@ -178,6 +181,13 @@ export class TypeScriptProject implements Project {
 
   private async withTestExtension(base: string): Promise<string> {
     const ext = await this.config.getTestFileExtension();
+    return this.addTestExtension(base, ext);
+  }
+
+  private addTestExtension(
+    base: string,
+    ext: TypescriptConfigTestFileExtension
+  ): string {
     return base.replace(/\.ts(x?)$/g, (_, ...args) => `${ext}${args[0]}`);
   }
 
@@ -265,6 +275,27 @@ export class TypeScriptProject implements Project {
     },
     {
       resolve: async (path: Path) => {
+        const { dir: packageJsonDir } = parse(this.packageJson);
+        const { base } = parse(path);
+
+        const possibilities = ["test", "tests"];
+
+        for (const possibility of possibilities) {
+          if (await Files.exists(resolve(packageJsonDir, possibility))) {
+            const result = await this.testExists(
+              resolve(packageJsonDir, possibility),
+              base
+            );
+
+            if (result.exists) {
+              return {
+                exists: true,
+                path: result.path,
+              };
+            }
+          }
+        }
+
         return {
           exists: false,
           path: "",
@@ -351,6 +382,46 @@ export class TypeScriptProject implements Project {
     },
     {
       resolve: async (path: Path) => {
+        const { base } = parse(path);
+        const { dir: packageJsonDir } = parse(this.packageJson);
+        const filename = await this.withSourceExtension(base);
+
+        const files = await workspace.findFiles(
+          new RelativePattern(packageJsonDir, `**/${filename}`)
+        );
+
+        if (files.length === 0) {
+          return {
+            exists: false,
+            path: "",
+          };
+        }
+
+        if (files.length === 1) {
+          return {
+            exists: true,
+            path: files[0].fsPath,
+          };
+        }
+
+        const pick = await window.showQuickPick(
+          files.map((file) => ({
+            label: file.fsPath.replace(packageJsonDir, ""),
+            value: file.fsPath,
+          })),
+          {
+            title:
+              "Found multiple possible source files, please select the correct one. ",
+          }
+        );
+
+        if (pick) {
+          return {
+            exists: true,
+            path: pick.value,
+          };
+        }
+
         return {
           exists: false,
           path: "",
@@ -359,4 +430,45 @@ export class TypeScriptProject implements Project {
       strategy: TypescriptConfigTestLocation.RootTestFolderFlat,
     },
   ];
+
+  private async testExists(
+    path: Path,
+    sourceFileName: string
+  ): Promise<{ exists: boolean; path: Path }> {
+    const { base } = parse(sourceFileName);
+    const testPath = resolve(path, await this.withTestExtension(base));
+
+    if (await Files.exists(testPath)) {
+      return {
+        exists: true,
+        path: testPath,
+      };
+    }
+
+    const expectedExtension = await this.config.getTestFileExtension();
+
+    for (const ext of Object.values(TypescriptConfigTestFileExtension)) {
+      const testPath = resolve(path, this.addTestExtension(base, ext));
+
+      if (await Files.exists(testPath)) {
+        window.showInformationMessage(
+          "Found Test, but it didn't have the expected extension. Expected: " +
+            expectedExtension +
+            " but found the file in: " +
+            ext +
+            " instead. Consider changing the test file extension."
+        );
+
+        return {
+          exists: true,
+          path: testPath,
+        };
+      }
+    }
+
+    return {
+      exists: false,
+      path: "",
+    };
+  }
 }
