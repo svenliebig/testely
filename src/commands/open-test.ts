@@ -1,5 +1,6 @@
 import { commands, TextDocument, Uri, window } from "vscode";
 import { resolveProject } from "../resolver/project";
+import { Files } from "../utils/files";
 import { Logging } from "../utils/logger";
 
 const ERRORS = {
@@ -41,13 +42,15 @@ export async function openTest(document: TextDocument) {
       );
 
       await showDocument(sourceFilePath);
-    } else {
-      Logging.debug("[OpenTest] Getting test file path");
-      const testFilePath = await project.getTestFilePath(document.uri.fsPath);
+    }
 
-      Logging.debug("[OpenTest] Showing test file", {
-        testFilePath,
-      });
+    const testFilePath = await project.getTestFilePath(document.uri.fsPath);
+
+    if (await Files.exists(testFilePath)) {
+      Logging.debug("[OpenTest] File exists, showing document");
+      await showDocument(testFilePath);
+    } else {
+      Logging.debug("[OpenTest] File does not exist, creating file");
       await showDocument(testFilePath);
     }
   } catch (error) {
