@@ -145,7 +145,7 @@ export class TypeScriptProject implements Project {
 
     // create file
     const { dir } = parse(result.path);
-    await Files.assureDir(dir);
+    await Files.ensureDir(dir);
 
     await writeFile(result.path, "", { encoding: "utf8" });
 

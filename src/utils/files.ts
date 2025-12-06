@@ -9,7 +9,7 @@ export const Files = {
   getClosest,
   distance,
   exists,
-  assureDir,
+  ensureDir,
 };
 
 async function getClosest(
@@ -70,7 +70,7 @@ function isFolder(path: string): boolean {
   return existsSync(path) && statSync(path).isDirectory();
 }
 
-async function assureDir(path: string) {
+async function ensureDir(path: string) {
   if (existsSync(path)) {
     if (!isFolder(path)) {
       throw new Error(`Path is not a folder. Stop messing around. (${path})`);
