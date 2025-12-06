@@ -41,7 +41,7 @@ export async function openTest(document: TextDocument) {
         document.uri.fsPath
       );
 
-      await showDocument(sourceFilePath);
+      return await showDocument(sourceFilePath);
     }
 
     const testFilePath = await project.getTestFilePath(document.uri.fsPath);
