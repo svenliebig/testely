@@ -49,7 +49,6 @@ export function resolveProject(source: TextDocument): Project | undefined {
     if (likelihood !== false && (p === undefined || likelihood < l)) {
       p = project;
       l = likelihood;
-      break;
     }
   }
 
